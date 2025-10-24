@@ -1,120 +1,202 @@
 <template>
-  <div id="main">
-    <el-form label-width="100px" :rules="rules" ref="ruleFormRef" :model="ruleForm" status-icon>
-
-      <el-form-item :label="lang.sender" prop="sender">
-        <el-popover trigger="click" :width="600">
-          <template #reference>
-            <div
-                style="border: 1px solid #dcdfe6; border-radius:3px;height: 30px; line-height: 30px; padding: 0 5px 0 5px;">
-              <span style="font-size: 16px; font-weight: bolder;">{{ ruleForm.nickName }}</span>
-              <span> &lt;{{ ruleForm.sender }}@{{ ruleForm.pickDomain }}&gt;</span>
-            </div>
-          </template>
-          <template #default>
-            <div style="display: flex; flex-direction:column;">
-              <div style=" margin-bottom: 10px;">
-                <el-form-item :label="lang.sender" prop="sender">
-                  <el-input style="max-width: 200px" :disabled="!(globalStatus.userInfos.is_admin)"
-                            v-model="ruleForm.sender" :placeholder="lang.sender_desc"/>
-                  <div>@</div>
-                  <el-select v-model="ruleForm.pickDomain">
-                    <el-option :value="item" v-for="item in ruleForm.domains" :key="item">{{ item }}</el-option>
-                  </el-select>
-                </el-form-item>
+  <div class="text-left pr-5 py-4 px-5">
+    <form @submit.prevent="send">
+      <!-- Sender Field -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold mb-2">{{ lang.sender }}</label>
+        <div class="relative">
+          <div 
+            @click="showSenderPopover = !showSenderPopover"
+            class="border border-gray-300 rounded px-3 py-2 cursor-pointer hover:border-gray-400 transition"
+          >
+            <span class="font-bold">{{ ruleForm.nickName }}</span>
+            <span> &lt;{{ ruleForm.sender }}@{{ ruleForm.pickDomain }}&gt;</span>
+          </div>
+          
+          <!-- Sender Popover -->
+          <div v-if="showSenderPopover" class="absolute z-10 mt-2 w-full bg-white border rounded-lg shadow-lg p-4">
+            <div class="mb-4">
+              <label class="block text-sm font-bold mb-2">{{ lang.sender }}</label>
+              <div class="flex items-center gap-2">
+                <input 
+                  v-model="ruleForm.sender" 
+                  :disabled="!(globalStatus.userInfos.is_admin)"
+                  :placeholder="lang.sender_desc"
+                  class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span>@</span>
+                <select 
+                  v-model="ruleForm.pickDomain"
+                  class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option v-for="item in ruleForm.domains" :key="item" :value="item">{{ item }}</option>
+                </select>
               </div>
-
-              <div>
-                <el-form-item :label="lang.nick_name">
-                  <el-input style="max-width: 300px" v-model="ruleForm.nickName"/>
-                </el-form-item>
-              </div>
-
             </div>
-          </template>
-        </el-popover>
-
-      </el-form-item>
-
-
-      <el-form-item :label="lang.to" prop="receivers">
-        <el-select v-model="ruleForm.receivers" style="width: 100%;" multiple filterable allow-create
-                   :reserve-keyword="false" :placeholder="lang.to_desc"></el-select>
-      </el-form-item>
-
-
-      <el-form-item :label="lang.cc" prop="cc">
-        <el-select v-model="ruleForm.cc" style="width: 100%;" multiple filterable allow-create
-                   :reserve-keyword="false" :placeholder="lang.cc_desc"></el-select>
-      </el-form-item>
-
-      <el-form-item :label="lang.bcc" prop="bcc">
-        <el-select v-model="ruleForm.bcc" style="width: 100%;" multiple filterable allow-create
-                   :reserve-keyword="false" :placeholder="lang.bcc_desc"></el-select>
-      </el-form-item>
-
-      <el-form-item :label="lang.title" prop="subject">
-        <el-input v-model="ruleForm.subject" :placeholder="lang.title"></el-input>
-      </el-form-item>
-
-
-      <div id="editor">
-        <div style="border: 1px solid #ccc">
-          <Toolbar style="border-bottom: 1px solid #ccc" :editor="editorRef" :defaultConfig="toolbarConfig"
-                   :mode="mode"/>
-          <Editor style="height: 300px;" v-model="valueHtml" :defaultConfig="editorConfig" :mode="mode"
-                  @onCreated="handleCreated"/>
+            
+            <div>
+              <label class="block text-sm font-bold mb-2">{{ lang.nick_name }}</label>
+              <input 
+                v-model="ruleForm.nickName"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <button 
+              @click="showSenderPopover = false"
+              type="button"
+              class="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded"
+            >
+              {{ lang.confirm || 'OK' }}
+            </button>
+          </div>
         </div>
+        <span v-if="errors.sender" class="text-red-500 text-sm">{{ errors.sender }}</span>
       </div>
 
-      <div id="fileList">
-        <ol>
-          <li v-for="(item, index) in fileList" :key="item">{{ item.name }}
-            <el-icon @click="delFile(index)">
-              <Close/>
-            </el-icon>
+      <!-- To Field -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold mb-2">{{ lang.to }}</label>
+        <div class="border rounded p-2 min-h-[40px] flex flex-wrap gap-2">
+          <span 
+            v-for="(receiver, index) in ruleForm.receivers" 
+            :key="index"
+            class="inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded"
+          >
+            {{ receiver }}
+            <button @click="removeReceiver(index)" type="button" class="ml-1">
+              <span class="iconify" data-icon="mdi:close"></span>
+            </button>
+          </span>
+          <input 
+            v-model="receiverInput"
+            @keydown.enter.prevent="addReceiver"
+            @keydown.comma.prevent="addReceiver"
+            :placeholder="lang.to_desc"
+            class="flex-1 min-w-[200px] outline-none"
+          />
+        </div>
+        <span v-if="errors.receivers" class="text-red-500 text-sm">{{ errors.receivers }}</span>
+      </div>
+
+      <!-- CC Field -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold mb-2">{{ lang.cc }}</label>
+        <div class="border rounded p-2 min-h-[40px] flex flex-wrap gap-2">
+          <span 
+            v-for="(cc, index) in ruleForm.cc" 
+            :key="index"
+            class="inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded"
+          >
+            {{ cc }}
+            <button @click="removeCC(index)" type="button" class="ml-1">
+              <span class="iconify" data-icon="mdi:close"></span>
+            </button>
+          </span>
+          <input 
+            v-model="ccInput"
+            @keydown.enter.prevent="addCC"
+            @keydown.comma.prevent="addCC"
+            :placeholder="lang.cc_desc"
+            class="flex-1 min-w-[200px] outline-none"
+          />
+        </div>
+        <span v-if="errors.cc" class="text-red-500 text-sm">{{ errors.cc }}</span>
+      </div>
+
+      <!-- BCC Field -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold mb-2">{{ lang.bcc }}</label>
+        <div class="border rounded p-2 min-h-[40px] flex flex-wrap gap-2">
+          <span 
+            v-for="(bcc, index) in ruleForm.bcc" 
+            :key="index"
+            class="inline-flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded"
+          >
+            {{ bcc }}
+            <button @click="removeBCC(index)" type="button" class="ml-1">
+              <span class="iconify" data-icon="mdi:close"></span>
+            </button>
+          </span>
+          <input 
+            v-model="bccInput"
+            @keydown.enter.prevent="addBCC"
+            @keydown.comma.prevent="addBCC"
+            :placeholder="lang.bcc_desc"
+            class="flex-1 min-w-[200px] outline-none"
+          />
+        </div>
+        <span v-if="errors.bcc" class="text-red-500 text-sm">{{ errors.bcc }}</span>
+      </div>
+
+      <!-- Subject Field -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold mb-2">{{ lang.title }}</label>
+        <input 
+          v-model="ruleForm.subject"
+          :placeholder="lang.title"
+          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <span v-if="errors.subject" class="text-red-500 text-sm">{{ errors.subject }}</span>
+      </div>
+
+      <!-- Editor -->
+      <div class="mb-4 border rounded">
+        <Toolbar class="border-b" :editor="editorRef" :defaultConfig="toolbarConfig" :mode="mode"/>
+        <Editor style="height: 300px;" v-model="valueHtml" :defaultConfig="editorConfig" :mode="mode" @onCreated="handleCreated"/>
+      </div>
+
+      <!-- File List -->
+      <div v-if="fileList.length > 0" class="mb-4">
+        <ul class="list-none p-0">
+          <li 
+            v-for="(item, index) in fileList" 
+            :key="index"
+            class="flex items-center justify-between bg-gray-100 px-3 py-2 mb-2 rounded"
+          >
+            <span>{{ item.name }}</span>
+            <button @click="delFile(index)" type="button" class="text-red-500 hover:text-red-700">
+              <span class="iconify" data-icon="mdi:close"></span>
+            </button>
           </li>
-        </ol>
+        </ul>
       </div>
 
-      <div id="sendButton">
-        <el-button type="primary" @click="send(ruleFormRef)">{{ lang.send }}</el-button>
-        <!-- <el-button>定时发送</el-button> -->
-
-        <div style="margin-left: 15px">
-          <el-button @click="upload">{{ lang.add_att }}</el-button>
-          <input v-show="false" ref="fileRef" type="file" @change="fileChange">
-        </div>
+      <!-- Action Buttons -->
+      <div class="flex gap-3">
+        <button 
+          type="submit"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded transition"
+        >
+          <span class="iconify mr-2" data-icon="mdi:send"></span>{{ lang.send }}
+        </button>
+        
+        <button 
+          @click="upload" 
+          type="button"
+          class="bg-gray-200 hover:bg-gray-300 px-6 py-2 rounded transition"
+        >
+          <span class="iconify mr-2" data-icon="mdi:attachment"></span>{{ lang.add_att }}
+        </button>
+        <input v-show="false" ref="fileRef" type="file" @change="fileChange">
       </div>
+    </form>
 
-    </el-form>
-
+    <!-- Toast Message -->
+    <div v-if="toastMessage" class="fixed top-4 right-4 z-50">
+      <div :class="[
+        'px-6 py-3 rounded shadow-lg',
+        toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      ]">
+        {{ toastMessage }}
+      </div>
+    </div>
   </div>
 </template>
 
-<style scoped>
-#main {
-  text-align: left;
-  padding-right: 20px;
-}
-
-#editor {
-  padding-left: 25px;
-}
-
-#sendButton {
-  padding-left: 25px;
-  padding-top: 5px;
-  display: flex;
-}
-</style>
-
-
 <script setup>
-import '@wangeditor/editor/dist/css/style.css' // 引入 css
-import {ElMessage} from 'element-plus'
+import '@wangeditor/editor/dist/css/style.css'
 import {onBeforeUnmount, reactive, ref, shallowRef} from 'vue'
-import {Close} from '@element-plus/icons-vue';
 import lang from '../i18n/i18n';
 import {Editor, Toolbar} from '@wangeditor/editor-for-vue'
 import {i18nChangeLanguage} from '@wangeditor/editor'
@@ -124,9 +206,7 @@ import useGroupStore from '../stores/group'
 import {useGlobalStatusStore} from "@/stores/useGlobalStatusStore";
 
 const router = useRouter();
-
 const groupStore = useGroupStore()
-
 const globalStatus = useGlobalStatusStore();
 
 if (lang.lang === "zhCn") {
@@ -135,127 +215,156 @@ if (lang.lang === "zhCn") {
   i18nChangeLanguage('en')
 }
 
-
-// 内容 HTML
 const valueHtml = ref('<p>hello</p>')
-
 const toolbarConfig = {}
 const editorConfig = {
   MENU_CONF: {},
   placeholder: ''
 }
 
-
 editorConfig.MENU_CONF['uploadImage'] = {
-  base64LimitSize: 100 * 1024 * 1024 * 1024,  // 100G以下的文件都base64传
+  base64LimitSize: 100 * 1024 * 1024 * 1024,
 }
+
 const mode = ref()
 const fileRef = ref();
-const ruleFormRef = ref()
-const ruleForm = reactive({
-  nickName: '',
+const showSenderPopover = ref(false)
+const receiverInput = ref('')
+const ccInput = ref('')
+const bccInput = ref('')
+const errors = reactive({
   sender: '',
   receivers: '',
   cc: '',
   bcc: '',
+  subject: ''
+})
+const toastMessage = ref('')
+const toastType = ref('success')
+
+const ruleForm = reactive({
+  nickName: '',
+  sender: '',
+  receivers: [],
+  cc: [],
+  bcc: [],
   subject: '',
   domains: [],
   pickDomain: ""
 })
+
 const fileList = reactive([]);
 
-
 const init = function () {
-    if ( Object.keys(globalStatus.userInfos)==0 || globalStatus.userInfos === null || globalStatus.userInfos == undefined ){
-      globalStatus.init(()=>{
-        ruleForm.sender = globalStatus.userInfos.account
-        ruleForm.domains = globalStatus.userInfos.domains
-        ruleForm.pickDomain = globalStatus.userInfos.domains[0]
-        ruleForm.nickName = globalStatus.userInfos.name
-      })
-    }else{
-      console.log(globalStatus.userInfos)
+  if (Object.keys(globalStatus.userInfos) == 0 || globalStatus.userInfos === null || globalStatus.userInfos == undefined) {
+    globalStatus.init(() => {
       ruleForm.sender = globalStatus.userInfos.account
       ruleForm.domains = globalStatus.userInfos.domains
       ruleForm.pickDomain = globalStatus.userInfos.domains[0]
       ruleForm.nickName = globalStatus.userInfos.name
-    }
-}
-init()
-
-
-const validateSender = function (rule, value, callback) {
-  if (typeof ruleForm.sender === "undefined" || ruleForm.sender === null || ruleForm.sender.trim() === "") {
-    callback(new Error(lang.err_sender_must))
-  } else if (ruleForm.sender.includes("@")) {
-    callback(new Error(lang.only_prefix))
+    })
   } else {
-    callback()
+    ruleForm.sender = globalStatus.userInfos.account
+    ruleForm.domains = globalStatus.userInfos.domains
+    ruleForm.pickDomain = globalStatus.userInfos.domains[0]
+    ruleForm.nickName = globalStatus.userInfos.name
   }
 }
+init()
 
 const checkEmail = function (str) {
   const re = /.+@.+\..+/;
   return re.test(str);
 }
 
-const validateReceivers = function (rule, value, callback) {
-  for (let index = 0; index < ruleForm.receivers.length; index++) {
-    let element = ruleForm.receivers[index];
-    if (!checkEmail(element)) {
-      callback(new Error(lang.err_email_format))
-      return
-    }
-  }
-  callback()
+const showToast = (message, type = 'success') => {
+  toastMessage.value = message
+  toastType.value = type
+  setTimeout(() => {
+    toastMessage.value = ''
+  }, 3000)
 }
 
-const validateCc = function (rule, value, callback) {
-  for (let index = 0; index < ruleForm.cc.length; index++) {
-    let element = ruleForm.cc[index];
-    if (!checkEmail(element)) {
-      callback(new Error(lang.err_email_format))
-      return
-    }
+const addReceiver = () => {
+  if (receiverInput.value.trim()) {
+    ruleForm.receivers.push(receiverInput.value.trim())
+    receiverInput.value = ''
   }
-  callback()
 }
 
-const validateBcc = function (rule, value, callback) {
-  for (let index = 0; index < ruleForm.bcc.length; index++) {
-    let element = ruleForm.bcc[index];
-
-    console.log(element)
-    if (!checkEmail(element)) {
-      callback(new Error(lang.err_email_format))
-      return
-    }
-  }
-  callback()
+const removeReceiver = (index) => {
+  ruleForm.receivers.splice(index, 1)
 }
 
-const rules = reactive({
-  sender: [
-    {validator: validateSender, trigger: 'change'}
-  ],
-  receivers: [
-    {validator: validateReceivers, trigger: 'change'}
-  ],
-  cc: [
-    {validator: validateCc, trigger: 'change'}
-  ],
-  bcc: [
-    {validator: validateBcc, trigger: 'change'}
-  ],
-  subject: [
-    {required: true, message: lang.err_title_must, trigger: 'change'},
-  ],
-})
+const addCC = () => {
+  if (ccInput.value.trim()) {
+    ruleForm.cc.push(ccInput.value.trim())
+    ccInput.value = ''
+  }
+}
 
+const removeCC = (index) => {
+  ruleForm.cc.splice(index, 1)
+}
 
-// 编辑器实例，必须用 shallowRef
+const addBCC = () => {
+  if (bccInput.value.trim()) {
+    ruleForm.bcc.push(bccInput.value.trim())
+    bccInput.value = ''
+  }
+}
+
+const removeBCC = (index) => {
+  ruleForm.bcc.splice(index, 1)
+}
+
+const validate = () => {
+  errors.sender = ''
+  errors.receivers = ''
+  errors.cc = ''
+  errors.bcc = ''
+  errors.subject = ''
+
+  if (typeof ruleForm.sender === "undefined" || ruleForm.sender === null || ruleForm.sender.trim() === "") {
+    errors.sender = lang.err_sender_must
+    return false
+  }
+  if (ruleForm.sender.includes("@")) {
+    errors.sender = lang.only_prefix
+    return false
+  }
+
+  for (let element of ruleForm.receivers) {
+    if (!checkEmail(element)) {
+      errors.receivers = lang.err_email_format
+      return false
+    }
+  }
+
+  for (let element of ruleForm.cc) {
+    if (!checkEmail(element)) {
+      errors.cc = lang.err_email_format
+      return false
+    }
+  }
+
+  for (let element of ruleForm.bcc) {
+    if (!checkEmail(element)) {
+      errors.bcc = lang.err_email_format
+      return false
+    }
+  }
+
+  if (!ruleForm.subject || ruleForm.subject.trim() === '') {
+    errors.subject = lang.err_title_must
+    return false
+  }
+
+  return true
+}
+
 const editorRef = shallowRef()
-// 组件销毁时，也及时销毁编辑器
+
 onBeforeUnmount(() => {
   const editor = editorRef.value
   if (editor == null) return
@@ -263,74 +372,62 @@ onBeforeUnmount(() => {
 })
 
 const handleCreated = (editor) => {
-  editorRef.value = editor // 记录 editor 实例，重要！
+  editorRef.value = editor
 }
 
-const send = function (formEl) {
-  if (!formEl) return
-  formEl.validate((valid) => {
-    if (valid) {
-      let objectTos = []
-      for (let index = 0; index < ruleForm.receivers.length; index++) {
-        let element = ruleForm.receivers[index];
-        objectTos.push({
-          name: "",
-          email: element
-        })
-      }
+const send = function () {
+  if (!validate()) {
+    return
+  }
 
-      let objectCcs = []
-      for (let index = 0; index < ruleForm.cc.length; index++) {
-        let element = ruleForm.cc[index];
-        objectCcs.push({
-          name: "",
-          email: element
-        })
-      }
+  let objectTos = []
+  for (let element of ruleForm.receivers) {
+    objectTos.push({
+      name: "",
+      email: element
+    })
+  }
 
-      let objectBccs = []
-      for (let index = 0; index < ruleForm.bcc.length; index++) {
-        let element = ruleForm.bcc[index];
-        objectBccs.push({
-          name: "",
-          email: element
-        })
-      }
+  let objectCcs = []
+  for (let element of ruleForm.cc) {
+    objectCcs.push({
+      name: "",
+      email: element
+    })
+  }
 
-      let text = editorRef.value.getText()
+  let objectBccs = []
+  for (let element of ruleForm.bcc) {
+    objectBccs.push({
+      name: "",
+      email: element
+    })
+  }
 
-      http.post("/api/email/send", {
-        from: {name: ruleForm.nickName, email: ruleForm.sender + "@" + ruleForm.pickDomain},
-        to: objectTos,
-        cc: objectCcs,
-        bcc: objectBccs,
-        subject: ruleForm.subject,
-        text: text,
-        html: valueHtml.value,
-        attrs: fileList
-      }).then(res => {
-        if (res.errorNo === 0) {
-          ElMessage({
-            message: lang.succ_send,
-            type: 'success',
-          })
-          groupStore.name = lang.outbox
-          groupStore.tag = '{"type":1,"status":-1}'
-          router.replace({
-            name: 'list',
-          })
-        } else {
-          ElMessage.error(res.data)
-        }
+  let text = editorRef.value.getText()
+
+  http.post("/api/email/send", {
+    from: {name: ruleForm.nickName, email: ruleForm.sender + "@" + ruleForm.pickDomain},
+    to: objectTos,
+    cc: objectCcs,
+    bcc: objectBccs,
+    subject: ruleForm.subject,
+    text: text,
+    html: valueHtml.value,
+    attrs: fileList
+  }).then(res => {
+    if (res.errorNo === 0) {
+      showToast(lang.succ_send, 'success')
+      groupStore.name = lang.outbox
+      groupStore.tag = '{"type":1,"status":-1}'
+      router.replace({
+        name: 'list',
       })
     } else {
-      return false
+      showToast(res.data, 'error')
     }
   })
-
-
 }
-
 
 const upload = function () {
   fileRef.value.dispatchEvent(new MouseEvent('click'))
@@ -349,7 +446,6 @@ const fileChange = function (e) {
       })
     };
     reader.readAsDataURL(files[i]);
-
   }
 }
 
@@ -357,3 +453,6 @@ const delFile = function (index) {
   fileList.splice(index, 1);
 }
 </script>
+
+<style scoped>
+</style>
