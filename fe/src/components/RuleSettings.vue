@@ -1,108 +1,231 @@
 <template>
-  <el-table :data="data" :show-header="true">
-    <el-table-column prop="id" label="id"/>
-    <el-table-column prop="name" :label="lang.rule_name"/>
-    <el-table-column prop="action" :label="lang.rule_do">
-      <template #default="scope">
-        {{ ActionName[scope.row.action] }}
-      </template>
-    </el-table-column>
-    <el-table-column prop="params" :label="lang.rule_params"/>
-    <el-table-column prop="sort" :label="lang.rule_priority"/>
-    <el-table-column>
-      <template #default="scope">
-        <div style="display: flex; align-items: center">
-          <el-button size="small" type="primary" :icon="Edit" circle @click="editRule(scope.row)"/>
-          <el-popconfirm confirm-button-text="Yes" cancel-button-text="No, Thanks" :icon="InfoFilled"
-                         @confirm="delRule(scope.row.id)" icon-color="#626AEF" :title="lang.del_rule_confirm">
-            <template #reference>
-              <el-button size="small" type="danger" :icon="Delete" circle/>
-            </template>
-          </el-popconfirm>
-        </div>
-      </template>
-    </el-table-column>
-  </el-table>
-
   <div>
-    <el-button @click="dialogVisible = true">{{ lang.new_rule }}</el-button>
-  </div>
+    <!-- Rules Table -->
+    <div class="overflow-x-auto mb-4">
+      <table class="w-full border-collapse">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="border p-3 text-left">id</th>
+            <th class="border p-3 text-left">{{ lang.rule_name }}</th>
+            <th class="border p-3 text-left">{{ lang.rule_do }}</th>
+            <th class="border p-3 text-left">{{ lang.rule_params }}</th>
+            <th class="border p-3 text-left">{{ lang.rule_priority }}</th>
+            <th class="border p-3 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in data" :key="row.id" class="hover:bg-gray-50">
+            <td class="border p-3">{{ row.id }}</td>
+            <td class="border p-3">{{ row.name }}</td>
+            <td class="border p-3">{{ ActionName[row.action] }}</td>
+            <td class="border p-3">{{ row.params }}</td>
+            <td class="border p-3">{{ row.sort }}</td>
+            <td class="border p-3">
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="editRule(row)"
+                  class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full transition"
+                  title="Edit"
+                >
+                  <span class="iconify" data-icon="mdi:pencil"></span>
+                </button>
+                <button 
+                  @click="confirmDelete(row.id)"
+                  class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full transition"
+                  title="Delete"
+                >
+                  <span class="iconify" data-icon="mdi:delete"></span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
+    <button 
+      @click="dialogVisible = true"
+      class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded transition"
+    >
+      {{ lang.new_rule }}
+    </button>
 
-  <el-dialog v-model="dialogVisible" :title="lang.new_rule" width="60%">
-    <div style="text-align: left; padding-left: 20px;">
-      <el-form v-model="addRuleForm" :inline="true" label-position="top">
-        <el-form-item style="width: 400px;" :label="lang.rule_name">
-          <el-input v-model="addRuleForm.name"/>
-        </el-form-item>
+    <!-- Add/Edit Rule Dialog -->
+    <div v-if="dialogVisible" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black bg-opacity-50" @click="dialogVisible = false"></div>
+      <div class="relative bg-white rounded-lg p-6 w-[800px] max-h-[90vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-4">{{ lang.new_rule }}</h3>
+        
+        <div class="space-y-6">
+          <!-- Rule Name and Priority -->
+          <div class="flex gap-4">
+            <div class="flex-1">
+              <label class="block text-sm font-bold mb-2">{{ lang.rule_name }}</label>
+              <input 
+                v-model="addRuleForm.name"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div class="w-32">
+              <label class="block text-sm font-bold mb-2">{{ lang.rule_priority }}</label>
+              <input 
+                v-model="addRuleForm.sort"
+                type="number"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
 
-        <el-form-item :label="lang.rule_priority">
-          <el-input v-model="addRuleForm.sort" type="number" oninput="value=value.replace(/[^\-\d]/g, '')"/>
-        </el-form-item>
-        <el-divider/>
-        <div style="width: 100%;">{{ lang.rule_desc }}</div>
-        <div style="width: 100%;">
-          <div v-for="(rule, index) in addRuleForm.rules" :key="index">
-            <el-select v-model="rule.field" placeholder="Select">
-              <el-option key="From" :label="lang.from" value="From"/>
-              <el-option key="Subject" :label="lang.subject" value="Subject"/>
-              <el-option key="To" :label="lang.to" value="To"/>
-              <el-option key="Cc" :label="lang.cc" value="Cc"/>
-              <el-option key="Content" :label="lang.content" value="Content"/>
-            </el-select>
+          <!-- Rule Conditions -->
+          <div class="border-t pt-4">
+            <label class="block text-sm font-bold mb-2">{{ lang.rule_desc }}</label>
+            <div class="space-y-2">
+              <div v-for="(rule, index) in addRuleForm.rules" :key="index" class="flex gap-2 items-center">
+                <select 
+                  v-model="rule.field"
+                  class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select field</option>
+                  <option value="From">{{ lang.from }}</option>
+                  <option value="Subject">{{ lang.subject }}</option>
+                  <option value="To">{{ lang.to }}</option>
+                  <option value="Cc">{{ lang.cc }}</option>
+                  <option value="Content">{{ lang.content }}</option>
+                </select>
 
-            <el-select v-model="rule.type" placeholder="Select">
-              <el-option key="equal" :label="lang.equal" value="equal"/>
-              <el-option key="contains" :label="lang.contains" value="contains"/>
-              <el-option key="regex" :label="lang.regex" value="regex"/>
-            </el-select>
+                <select 
+                  v-model="rule.type"
+                  class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select type</option>
+                  <option value="equal">{{ lang.equal }}</option>
+                  <option value="contains">{{ lang.contains }}</option>
+                  <option value="regex">{{ lang.regex }}</option>
+                </select>
 
-            <el-input v-model="rule.rule" style="width: 350px;"/>
-            <el-button size="small" type="danger" :icon="Delete" @click="removeRuleLine(index)" circle/>
+                <input 
+                  v-model="rule.rule"
+                  class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Value"
+                />
+
+                <button 
+                  @click="removeRuleLine(index)"
+                  class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full transition"
+                >
+                  <span class="iconify" data-icon="mdi:minus"></span>
+                </button>
+              </div>
+            </div>
+            <button 
+              @click="addRule"
+              class="mt-2 bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full transition"
+            >
+              <span class="iconify" data-icon="mdi:plus"></span>
+            </button>
+          </div>
+
+          <!-- Rule Action -->
+          <div class="border-t pt-4">
+            <label class="block text-sm font-bold mb-2">{{ lang.rule_do }}</label>
+            <div class="flex gap-2">
+              <select 
+                v-model="addRuleForm.action"
+                @change="ruleTypeChange"
+                class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select action</option>
+                <option :value="READ">{{ lang.mark_read }}</option>
+                <option :value="MOVE">{{ lang.move }}</option>
+                <option :value="DELETE">{{ lang.delete }}</option>
+                <option :value="FORWARD">{{ lang.forward }}</option>
+              </select>
+
+              <select 
+                v-if="addRuleForm.action === 4"
+                v-model="addRuleForm.params"
+                @click="reflushGroupInfos"
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select group</option>
+                <option v-for="gp in groupData.list" :key="gp.id" :value="gp.id">{{ gp.name }}</option>
+              </select>
+
+              <input 
+                v-if="addRuleForm.action === 2"
+                v-model="addRuleForm.params"
+                placeholder="Forward Email Address"
+                class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
         </div>
-        <div style="padding-top: 7px;">
-          <el-button size="small" type="primary" :icon="Plus" circle @click="addRule()"/>
+
+        <div class="flex justify-end gap-3 mt-6">
+          <button 
+            @click="dialogVisible = false"
+            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="submitRule"
+            class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition"
+          >
+            {{ lang.submit }}
+          </button>
         </div>
-        <el-divider/>
-        <div style="width: 100%;">{{ lang.rule_do }}</div>
-        <el-form-item>
-          <el-select v-model="addRuleForm.action" placeholder="Select" @change="ruleTypeChange()">
-            <el-option key="mark_read" :label="lang.mark_read" :value="READ"/>
-            <el-option key="move" :label="lang.move" :value="MOVE"/>
-            <el-option key="delete" :label="lang.delete" :value="DELETE"/>
-            <el-option key="forward" :label="lang.forward" :value="FORWARD"/>
-          </el-select>
-          <el-select v-if="addRuleForm.action === 4" v-model="addRuleForm.params" @click="reflushGroupInfos">
-            <el-option v-for="gp in groupData.list" :key="gp.id" :label="gp.name" :value="gp.id"/>
-          </el-select>
-
-          <el-input v-if="addRuleForm.action === 2" v-model="addRuleForm.params" style="width: 250px;"
-                    placeholder="Forward Email Address"/>
-
-        </el-form-item>
-
-      </el-form>
+      </div>
     </div>
-    <template #footer>
-            <span class="dialog-footer">
-                <el-button type="primary" @click="submitRule()">
-                    {{ lang.submit }}
-                </el-button>
-            </span>
-    </template>
-  </el-dialog>
+
+    <!-- Confirm Delete Dialog -->
+    <div v-if="showConfirmDelete" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 bg-black bg-opacity-50" @click="showConfirmDelete = false"></div>
+      <div class="relative bg-white rounded-lg p-6 w-96">
+        <h3 class="text-lg font-bold mb-4">{{ lang.del_rule_confirm }}</h3>
+        <div class="flex justify-end gap-3">
+          <button 
+            @click="showConfirmDelete = false"
+            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+          >
+            No, Thanks
+          </button>
+          <button 
+            @click="delRule(deleteId)"
+            class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded"
+          >
+            Yes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Message -->
+    <div v-if="toastMessage" class="fixed top-4 right-4 z-50">
+      <div :class="[
+        'px-6 py-3 rounded shadow-lg',
+        toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      ]">
+        <div class="font-bold">{{ toastTitle }}</div>
+        <div v-if="toastMessage">{{ toastMessage }}</div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import {reactive, ref} from 'vue';
 import lang from '../i18n/i18n';
-import {Delete, Edit, InfoFilled, Plus} from '@element-plus/icons-vue'
 import {http} from "@/utils/axios";
-import {ElNotification} from "element-plus";
 
 const data = ref([])
 const dialogVisible = ref(false)
+const showConfirmDelete = ref(false)
+const deleteId = ref(0)
+const toastMessage = ref('')
+const toastTitle = ref('')
+const toastType = ref('success')
+
 const READ = 1
 const FORWARD = 2
 const DELETE = 3
@@ -113,6 +236,15 @@ const ActionName = {
   2: lang.forward,
   3: lang.delete,
   4: lang.move
+}
+
+const showToast = (title, message, type = 'success') => {
+  toastTitle.value = title
+  toastMessage.value = message
+  toastType.value = type
+  setTimeout(() => {
+    toastMessage.value = ''
+  }, 3000)
 }
 
 const init = function () {
@@ -135,7 +267,6 @@ const reflushGroupInfos = function () {
         groupData.list[i].id += ""
       }
     }
-
   })
 }
 
@@ -156,14 +287,19 @@ const addRuleForm = reactive({
   "params": ""
 })
 
+const confirmDelete = function (id) {
+  deleteId.value = id
+  showConfirmDelete.value = true
+}
+
 const delRule = function (id) {
   http.post("/api/rule/del", {"id": id}).then((res) => {
-    ElNotification({
-      title: res.errorNo === 0 ? lang.succ : lang.fail,
-      message: res.data,
-      type: res.errorNo === 0 ? 'success' : 'error',
-    })
-
+    showToast(
+      res.errorNo === 0 ? lang.succ : lang.fail,
+      res.data,
+      res.errorNo === 0 ? 'success' : 'error'
+    )
+    showConfirmDelete.value = false
     init()
   })
 }
@@ -183,13 +319,11 @@ const removeRuleLine = function (index) {
 }
 
 const addRule = function () {
-  addRuleForm.rules.push(
-      {
-        "field": "",
-        "type": "",
-        "rule": ""
-      }
-  )
+  addRuleForm.rules.push({
+    "field": "",
+    "type": "",
+    "rule": ""
+  })
 }
 
 const submitRule = function () {
@@ -202,11 +336,7 @@ const submitRule = function () {
 
   http.post(api, addRuleForm).then((res) => {
     if (res.errorNo !== 0) {
-      ElNotification({
-        title: lang.fail,
-        message: res.data,
-        type: 'error',
-      })
+      showToast(lang.fail, res.data, 'error')
     } else {
       init()
       dialogVisible.value = false
@@ -223,12 +353,15 @@ const submitRule = function () {
       ]
       addRuleForm.action = ""
       addRuleForm.params = ""
+      showToast(lang.succ, '', 'success')
     }
   })
 }
-
 
 const ruleTypeChange = function () {
   addRuleForm.params = ''
 }
 </script>
+
+<style scoped>
+</style>

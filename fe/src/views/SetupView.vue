@@ -1,238 +1,358 @@
 <template>
-  <div id="main">
-    <el-steps :active="active" align-center finish-status="success" id="status">
-      <el-step :title="lang.welcome"/>
-      <el-step :title="lang.setDatabase"/>
-      <el-step :title="lang.setAdminPassword"/>
-      <el-step :title="lang.SetDomail"/>
-      <el-step :title="lang.setDNS"/>
-      <el-step :title="lang.setSSL"/>
-    </el-steps>
-
-
-    <div v-if="active === 0" class="ctn">
-      <div class="desc">
-        <h2>{{ lang.tks_pmail }}</h2>
-        <div style="margin-top: 10px;">{{ lang.guid_desc }}</div>
-      </div>
-    </div>
-
-    <div v-if="active === 1" class="ctn">
-      <div class="desc">
-        <h2>{{ lang.select_db }}</h2>
-        <div style="margin-top: 10px;">{{ lang.db_desc }}</div>
-      </div>
-      <div class="form" style="width: 400px;">
-        <el-form label-width="120px">
-          <el-form-item :label="lang.type">
-            <el-select :placeholder="lang.db_select_ph" v-model="dbSettings.type"
-                       @change="dbSettings.dsn = ''">
-              <el-option label="MySQL" value="mysql"/>
-              <el-option label="SQLite3" value="sqlite"/>
-              <el-option label="PostgreSQL" value="postgres"/>
-            </el-select>
-          </el-form-item>
-
-          <el-form-item :label="lang.mysql_dsn" v-if="dbSettings.type === 'mysql'">
-            <el-input :rows="2" type="textarea" v-model="dbSettings.dsn"
-                      placeholder="root:12345@tcp(127.0.0.1:3306)/pmail?parseTime=True&loc=Local"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.pg_dsn" v-if="dbSettings.type === 'postgres'">
-            <el-input :rows="2" type="textarea" v-model="dbSettings.dsn"
-                      placeholder="postgres://postgres:12345@127.0.0.1:5432/pmail?sslmode=disable"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.sqlite_db_path" v-if="dbSettings.type === 'sqlite'">
-            <el-input v-model="dbSettings.dsn" placeholder="./config/pmail.db"></el-input>
-          </el-form-item>
-        </el-form>
-      </div>
-    </div>
-
-
-    <div v-if="active === 2" class="ctn">
-      <div class="desc">
-        <h2>{{ lang.setAdminPassword }}</h2>
-        <!-- <div style="margin-top: 10px;">{{ lang.domain_desc }}</div> -->
-      </div>
-      <div class="form" style="width: 400px;">
-        <el-form label-width="120px">
-
-          <el-form-item :label="lang.admin_account">
-            <el-input v-bind:disabled="adminSettings.hadSeted" placeholder="admin"
-                      v-model="adminSettings.account"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.password">
-            <el-input type="password" v-bind:disabled="adminSettings.hadSeted" placeholder=""
-                      v-model="adminSettings.password"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.enter_again">
-            <el-input type="password" v-bind:disabled="adminSettings.hadSeted" placeholder=""
-                      v-model="adminSettings.password2"></el-input>
-          </el-form-item>
-        </el-form>
-      </div>
-    </div>
-
-
-    <div v-if="active === 3" class="ctn">
-      <div class="desc">
-        <h2>{{ lang.SetDomail }}</h2>
-        <!-- <div style="margin-top: 10px;">{{ lang.domain_desc }}</div> -->
-      </div>
-      <div class="form" style="width: 400px;">
-        <el-form label-width="120px">
-
-          <el-form-item :label="lang.smtp_domain">
-            <el-input placeholder="domaim.com" v-model="domainSettings.smtp_domain">
-              <template #prepend>smtp.</template>
-            </el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.web_domain">
-            <el-input placeholder="pmail.domain.com" v-model="domainSettings.web_domain"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.multi_domain_setting">
-                        <span>{{ lang.multi_domain_setting_desc }}
-                          <el-button @click="addDomain" size="small"
-                                     type="success" :icon="Plus"
-                                     circle>
-                          </el-button>
-                        </span>
-            <el-input :placeholder="'domain' + i + '.com'" v-for="(item, i) in domainSettings.multi_domain "
-                      v-model="domainSettings.multi_domain[i]" :key="item"></el-input>
-          </el-form-item>
-
-
-        </el-form>
-      </div>
-    </div>
-
-    <div v-if="active === 4" class="ctn_s">
-
-      <div class="desc">
-        <h2>{{ lang.setDNS }}</h2>
-        <div style="margin-top: 10px;">{{ lang.dns_desc }}</div>
-      </div>
-      <div class="form" width="600px" v-for="(info,domain) in dnsInfos" :key="info">
-        <h3>{{ domain }}</h3>
-        <el-table :data="info" border style="width: 100%">
-          <el-table-column prop="host" label="HOSTNAME" width="110px">
-            <template #default="scope">
-              <div style="display: flex; align-items: center">
-                <el-tooltip :content="lang.dns_root_desc" placement="top"
-                            v-if="scope.row.host === '' || scope.row.host === '@' ">
-                  {{ scope.row.host }}
-                </el-tooltip>
-                <span v-else>{{ scope.row.host }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="type" label="TYPE" width="110px"/>
-          <el-table-column prop="value" label="VALUE">
-            <template #default="scope">
-              <div style="display: flex; align-items: center">
-                <el-tooltip :content="scope.row.tips" placement="top" v-if="scope.row.tips !== ''">
-                  {{ scope.row.value }}
-                </el-tooltip>
-                <span v-else>{{ scope.row.value }}</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="ttl" label="TTL" width="110px"/>
-        </el-table>
-      </div>
-    </div>
-
-    <el-alert :closable="false" title="Warning!" type="error" center
-              v-if="active === 5 && sslSettings.type === 0 && port !== 80" :description="lang.autoSSLWarn"/>
-
-    <div v-if="active === 5" class="ctn">
-      <div class="desc">
-        <h2>{{ lang.setSSL }}</h2>
-        <div style="margin-top: 10px;">{{ lang.setSSL }}</div>
-      </div>
-      <div class="form" width="600px">
-        <el-form label-width="120px">
-          <el-form-item :label="lang.type">
-            <el-select :placeholder="lang.ssl_auto" v-model="sslSettings.type" :disabled="dnsChecking">
-              <el-option :label="lang.ssl_auto" value="0"/>
-              <el-option :label="lang.ssl_manuallyf" value="1"/>
-            </el-select>
-          </el-form-item>
-
-          <el-form-item :label="lang.ssl_challenge_type" v-if="sslSettings.type === '0'">
-            <el-select :placeholder="lang.ssl_auto_http" v-model="sslSettings.challenge"
-                       :disabled="dnsChecking">
-              <el-option :label="lang.ssl_auto_http" value="http"/>
-              <el-option :label="lang.ssl_auto_dns" value="dns"/>
-            </el-select>
-
-            <el-tooltip class="box-item" effect="dark" :content="lang.challenge_typ_desc"
-                        placement="top-start">
-              <span style="margin-left: 6px; font-size:18px; font-weight: bolder;">?</span>
-            </el-tooltip>
-          </el-form-item>
-
-
-          <el-form-item :label="lang.ssl_key_path" v-if="sslSettings.type === '1'">
-            <el-input placeholder="./config/ssl/private.key" v-model="sslSettings.key_path"></el-input>
-          </el-form-item>
-
-          <el-form-item :label="lang.ssl_crt_path" v-if="sslSettings.type === '1'">
-            <el-input placeholder="./config/ssl/public.crt" v-model="sslSettings.crt_path"></el-input>
-          </el-form-item>
-        </el-form>
-
-
-      </div>
-
-    </div>
-
-    <div v-if="dnsChecking">
-      <label>{{ lang.dns_desc }}</label>
-      <el-table :data="sslSettings.paramsList" border v-loading="sslSettings.paramsList.length === 0">
-        <el-table-column prop="host" label="HOSTNAME" width="110px"/>
-        <el-table-column prop="type" label="TYPE" width="110px"/>
-        <el-table-column prop="value" label="VALUE">
-          <template #default="scope">
-            <div style="display: flex; align-items: center">
-              <el-tooltip :content="scope.row.tips" placement="top" v-if="scope.row.tips !== ''">
-                {{ scope.row.value }}
-              </el-tooltip>
-              <span v-else>{{ scope.row.value }}</span>
+  <div class="w-full h-full bg-gray-100 flex flex-col">
+    <!-- Steps Indicator -->
+    <div class="bg-white shadow-sm p-6">
+      <div class="flex items-center justify-center gap-4 max-w-5xl mx-auto">
+        <div v-for="(step, index) in steps" :key="index" class="flex items-center">
+          <div class="flex flex-col items-center">
+            <div :class="[
+              'w-10 h-10 rounded-full flex items-center justify-center font-bold transition',
+              active > index ? 'bg-green-500 text-white' : active === index ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-600'
+            ]">
+              <span v-if="active > index" class="iconify" data-icon="mdi:check"></span>
+              <span v-else>{{ index + 1 }}</span>
             </div>
-          </template>
-
-        </el-table-column>
-        <el-table-column prop="ttl" label="TTL" width="110px"/>
-      </el-table>
-
+            <div class="mt-2 text-sm text-center whitespace-nowrap">{{ step }}</div>
+          </div>
+          <div v-if="index < steps.length - 1" :class="[
+            'w-16 h-1 mx-2',
+            active > index ? 'bg-green-500' : 'bg-gray-300'
+          ]"></div>
+        </div>
+      </div>
     </div>
 
+    <!-- Content Area -->
+    <div class="flex-1 overflow-y-auto p-8">
+      <!-- Step 0: Welcome -->
+      <div v-if="active === 0" class="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
+        <h2 class="text-3xl font-bold mb-4">{{ lang.tks_pmail }}</h2>
+        <p class="text-gray-600">{{ lang.guid_desc }}</p>
+      </div>
 
-    <el-button :element-loading-text="waitDesc" v-loading.fullscreen.lock="fullscreenLoading" id="next"
-               style="margin-top: 12px" @click="next">{{
-        lang.next
-      }}
-    </el-button>
+      <!-- Step 1: Database -->
+      <div v-if="active === 1" class="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
+        <h2 class="text-2xl font-bold mb-2">{{ lang.select_db }}</h2>
+        <p class="text-gray-600 mb-6">{{ lang.db_desc }}</p>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.type }}</label>
+            <select 
+              v-model="dbSettings.type" 
+              @change="dbSettings.dsn = ''"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="mysql">MySQL</option>
+              <option value="sqlite">SQLite3</option>
+              <option value="postgres">PostgreSQL</option>
+            </select>
+          </div>
 
+          <div v-if="dbSettings.type === 'mysql'">
+            <label class="block text-sm font-bold mb-2">{{ lang.mysql_dsn }}</label>
+            <textarea 
+              v-model="dbSettings.dsn"
+              rows="2"
+              placeholder="root:12345@tcp(127.0.0.1:3306)/pmail?parseTime=True&loc=Local"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <div v-if="dbSettings.type === 'postgres'">
+            <label class="block text-sm font-bold mb-2">{{ lang.pg_dsn }}</label>
+            <textarea 
+              v-model="dbSettings.dsn"
+              rows="2"
+              placeholder="postgres://postgres:12345@127.0.0.1:5432/pmail?sslmode=disable"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <div v-if="dbSettings.type === 'sqlite'">
+            <label class="block text-sm font-bold mb-2">{{ lang.sqlite_db_path }}</label>
+            <input 
+              v-model="dbSettings.dsn"
+              placeholder="./config/pmail.db"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Admin Password -->
+      <div v-if="active === 2" class="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
+        <h2 class="text-2xl font-bold mb-6">{{ lang.setAdminPassword }}</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.admin_account }}</label>
+            <input 
+              v-model="adminSettings.account"
+              :disabled="adminSettings.hadSeted"
+              placeholder="admin"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.password }}</label>
+            <input 
+              type="password"
+              v-model="adminSettings.password"
+              :disabled="adminSettings.hadSeted"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.enter_again }}</label>
+            <input 
+              type="password"
+              v-model="adminSettings.password2"
+              :disabled="adminSettings.hadSeted"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Domain -->
+      <div v-if="active === 3" class="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
+        <h2 class="text-2xl font-bold mb-6">{{ lang.SetDomail }}</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.smtp_domain }}</label>
+            <div class="flex items-center">
+              <span class="bg-gray-200 px-3 py-2 border border-r-0 rounded-l">smtp.</span>
+              <input 
+                v-model="domainSettings.smtp_domain"
+                placeholder="domain.com"
+                class="flex-1 px-3 py-2 border rounded-r focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-bold mb-2">{{ lang.web_domain }}</label>
+            <input 
+              v-model="domainSettings.web_domain"
+              placeholder="pmail.domain.com"
+              class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-sm font-bold">{{ lang.multi_domain_setting }}</label>
+              <button 
+                @click="addDomain"
+                class="bg-green-500 hover:bg-green-600 text-white w-8 h-8 rounded-full transition"
+              >
+                +
+              </button>
+            </div>
+            <p class="text-sm text-gray-600 mb-2">{{ lang.multi_domain_setting_desc }}</p>
+            <div class="space-y-2">
+              <input 
+                v-for="(item, i) in domainSettings.multi_domain" 
+                :key="i"
+                v-model="domainSettings.multi_domain[i]"
+                :placeholder="'domain' + i + '.com'"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: DNS -->
+      <div v-if="active === 4" class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-lg shadow p-8 mb-6">
+          <h2 class="text-2xl font-bold mb-2">{{ lang.setDNS }}</h2>
+          <p class="text-gray-600 mb-6">{{ lang.dns_desc }}</p>
+        </div>
+        
+        <div v-for="(info, domain) in dnsInfos" :key="domain" class="bg-white rounded-lg shadow p-6 mb-4">
+          <h3 class="text-xl font-bold mb-4">{{ domain }}</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse border">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="border p-2 text-left w-28">HOSTNAME</th>
+                  <th class="border p-2 text-left w-28">TYPE</th>
+                  <th class="border p-2 text-left">VALUE</th>
+                  <th class="border p-2 text-left w-28">TTL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in info" :key="row.host + row.type">
+                  <td class="border p-2">
+                    <span :title="lang.dns_root_desc" v-if="row.host === '' || row.host === '@'">{{ row.host }}</span>
+                    <span v-else>{{ row.host }}</span>
+                  </td>
+                  <td class="border p-2">{{ row.type }}</td>
+                  <td class="border p-2">
+                    <span :title="row.tips" v-if="row.tips !== ''">{{ row.value }}</span>
+                    <span v-else>{{ row.value }}</span>
+                  </td>
+                  <td class="border p-2">{{ row.ttl }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: SSL -->
+      <div v-if="active === 5" class="max-w-3xl mx-auto">
+        <div v-if="sslSettings.type === '0' && port !== 80" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          <div class="font-bold">Warning!</div>
+          <div>{{ lang.autoSSLWarn }}</div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-8">
+          <h2 class="text-2xl font-bold mb-2">{{ lang.setSSL }}</h2>
+          <p class="text-gray-600 mb-6">{{ lang.setSSL }}</p>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-bold mb-2">{{ lang.type }}</label>
+              <select 
+                v-model="sslSettings.type"
+                :disabled="dnsChecking"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="0">{{ lang.ssl_auto }}</option>
+                <option value="1">{{ lang.ssl_manuallyf }}</option>
+              </select>
+            </div>
+
+            <div v-if="sslSettings.type === '0'">
+              <label class="block text-sm font-bold mb-2">{{ lang.ssl_challenge_type }}</label>
+              <div class="flex items-center gap-2">
+                <select 
+                  v-model="sslSettings.challenge"
+                  :disabled="dnsChecking"
+                  class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="http">{{ lang.ssl_auto_http }}</option>
+                  <option value="dns">{{ lang.ssl_auto_dns }}</option>
+                </select>
+                <span :title="lang.challenge_typ_desc" class="text-xl font-bold cursor-help">?</span>
+              </div>
+            </div>
+
+            <div v-if="sslSettings.type === '1'">
+              <label class="block text-sm font-bold mb-2">{{ lang.ssl_key_path }}</label>
+              <input 
+                v-model="sslSettings.key_path"
+                placeholder="./config/ssl/private.key"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div v-if="sslSettings.type === '1'">
+              <label class="block text-sm font-bold mb-2">{{ lang.ssl_crt_path }}</label>
+              <input 
+                v-model="sslSettings.crt_path"
+                placeholder="./config/ssl/public.crt"
+                class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="dnsChecking" class="bg-white rounded-lg shadow p-8 mt-4">
+          <label class="block text-lg font-bold mb-4">{{ lang.dns_desc }}</label>
+          <div v-if="sslSettings.paramsList.length === 0" class="text-center py-8 text-gray-500">
+            Loading...
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full border-collapse border">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="border p-2 text-left w-28">HOSTNAME</th>
+                  <th class="border p-2 text-left w-28">TYPE</th>
+                  <th class="border p-2 text-left">VALUE</th>
+                  <th class="border p-2 text-left w-28">TTL</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in sslSettings.paramsList" :key="row.host">
+                  <td class="border p-2">{{ row.host }}</td>
+                  <td class="border p-2">{{ row.type }}</td>
+                  <td class="border p-2">
+                    <span :title="row.tips" v-if="row.tips !== ''">{{ row.value }}</span>
+                    <span v-else>{{ row.value }}</span>
+                  </td>
+                  <td class="border p-2">{{ row.ttl }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Button -->
+    <div class="bg-white border-t p-4 flex justify-center">
+      <button 
+        @click="next"
+        :disabled="fullscreenLoading"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {{ lang.next }}
+      </button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div v-if="fullscreenLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-8 text-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <div class="text-lg font-bold">{{ waitDesc }}</div>
+      </div>
+    </div>
+
+    <!-- Toast Message -->
+    <div v-if="toastMessage" class="fixed top-4 right-4 z-50">
+      <div :class="[
+        'px-6 py-3 rounded shadow-lg',
+        toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      ]">
+        {{ toastMessage }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import {reactive, ref} from 'vue'
-import {ElMessage} from 'element-plus'
 import lang from '../i18n/i18n';
 import axios from 'axios'
-import {Plus} from '@element-plus/icons-vue'
 import {http} from "@/utils/axios";
 
 const waitDesc = ref(lang.wait_desc);
+const toastMessage = ref('')
+const toastType = ref('success')
+
+const showToast = (message, type = 'success') => {
+  toastMessage.value = message
+  toastType.value = type
+  setTimeout(() => {
+    toastMessage.value = ''
+  }, 3000)
+}
+
+const steps = [
+  lang.welcome,
+  lang.setDatabase,
+  lang.setAdminPassword,
+  lang.SetDomail,
+  lang.setDNS,
+  lang.setSSL
+]
 
 const adminSettings = reactive({
   "account": "admin",
@@ -261,15 +381,11 @@ const sslSettings = reactive({
   "paramsList": [],
 })
 
-
 const active = ref(0)
 const fullscreenLoading = ref(false)
 const dnsChecking = ref(false)
-
 const dnsInfos = ref({})
-
 const port = ref(80)
-
 
 const addDomain = () => {
   domainSettings.multi_domain.push([])
@@ -283,7 +399,7 @@ const setPassword = () => {
   }
 
   if (adminSettings.password !== adminSettings.password2) {
-    ElMessage.error(lang.err_pwd_diff)
+    showToast(lang.err_pwd_diff, 'error')
   } else {
     http.post("/api/setup", {
       "action": "set",
@@ -292,7 +408,7 @@ const setPassword = () => {
       "password": adminSettings.password
     }).then((res) => {
       if (res.errorNo !== 0) {
-        ElMessage.error(res.errorMsg)
+        showToast(res.errorMsg, 'error')
       } else {
         active.value++;
         getDomainConfig();
@@ -304,7 +420,7 @@ const setPassword = () => {
 const getPassword = () => {
   http.post("/api/setup", {"action": "get", "step": "password"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       adminSettings.hadSeted = res.data !== ""
       if (adminSettings.hadSeted) {
@@ -312,16 +428,14 @@ const getPassword = () => {
         adminSettings.password = "*******"
         adminSettings.password2 = "*******"
       }
-
     }
   })
 }
 
-
 const getDbConfig = () => {
   http.post("/api/setup", {"action": "get", "step": "database"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       dbSettings.type = res.data.db_type;
       dbSettings.dsn = res.data.db_dsn;
@@ -332,7 +446,7 @@ const getDbConfig = () => {
 const getDomainConfig = () => {
   http.post("/api/setup", {"action": "get", "step": "domain"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       domainSettings.web_domain = res.data.web_domain;
       domainSettings.smtp_domain = res.data.smtp_domain;
@@ -342,13 +456,11 @@ const getDomainConfig = () => {
 }
 
 const setDbConfig = () => {
-  // 切换数据库类型为sqlite时，数据库路径为空，则使用默认路径
   if (dbSettings.type === "sqlite" && !dbSettings.dsn) dbSettings.dsn = "./config/pmail.db";
-  else if (!dbSettings.dsn) ElMessage({
-    title: "Error",
-    message: lang.err_db_dsn_empty,
-    type: "error",
-  });
+  else if (!dbSettings.dsn) {
+    showToast(lang.err_db_dsn_empty, 'error')
+    return
+  }
   http.post("/api/setup", {
     "action": "set",
     "step": "database",
@@ -356,7 +468,7 @@ const setDbConfig = () => {
     "db_dsn": dbSettings.dsn
   }).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       active.value++;
       getPassword();
@@ -367,31 +479,27 @@ const setDbConfig = () => {
 const getDNSConfig = () => {
   http.post("/api/setup", {"action": "get", "step": "dns"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       dnsInfos.value = res.data
     }
   })
 }
 
-
 const getSSLConfig = () => {
   http.post("/api/setup", {"action": "get", "step": "ssl"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       sslSettings.type = res.data.type
       if (sslSettings.type === "2") {
         sslSettings.type = "0"
         sslSettings.challenge = "dns"
       }
-
-
       port.value = res.data.port
     }
   })
 }
-
 
 const setSSLConfig = () => {
   fullscreenLoading.value = true;
@@ -400,7 +508,6 @@ const setSSLConfig = () => {
   if (sslType === "0" && sslSettings.challenge === "dns") {
     sslType = "2"
   }
-
 
   http.post("/api/setup", {
     "action": "set",
@@ -411,9 +518,9 @@ const setSSLConfig = () => {
   }).then((res) => {
     if (res.errorNo !== 0) {
       fullscreenLoading.value = false;
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
-      if (sslType === 2) {
+      if (sslType == 2) {
         fullscreenLoading.value = false;
         dnsChecking.value = true;
         getSSLDNSParams();
@@ -423,7 +530,6 @@ const setSSLConfig = () => {
   })
 }
 
-
 const checkStatus = () => {
   axios.post("/api/ping", {}).then((res) => {
     if (res.data.errorNo !== 0) {
@@ -431,7 +537,7 @@ const checkStatus = () => {
         checkStatus()
       }, 1000);
     } else {
-      if (sslSettings.type === 1) {
+      if (sslSettings.type === '1') {
         window.location.href = "http://" + domainSettings.web_domain;
       } else {
         window.location.href = "https://" + domainSettings.web_domain;
@@ -444,7 +550,6 @@ const checkStatus = () => {
   })
 }
 
-
 const setDomainConfig = () => {
   http.post("/api/setup", {
     "action": "set",
@@ -454,7 +559,7 @@ const setDomainConfig = () => {
     "multi_domain": domainSettings.multi_domain.join(",")
   }).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       active.value++;
       getDNSConfig();
@@ -465,10 +570,9 @@ const setDomainConfig = () => {
 const getSSLDNSParams = () => {
   http.post("/api/setup", {"action": "getParams", "step": "ssl"}).then((res) => {
     if (res.errorNo !== 0) {
-      ElMessage.error(res.errorMsg)
+      showToast(res.errorMsg, 'error')
     } else {
       sslSettings.paramsList = res.data
-      console.log(sslSettings.paramsList)
     }
   })
 
@@ -477,10 +581,7 @@ const getSSLDNSParams = () => {
       getSSLDNSParams()
     }, 1000);
   }
-
-
 }
-
 
 const next = () => {
   switch (active.value) {
@@ -510,39 +611,8 @@ const next = () => {
       }
       break
   }
-
 }
 </script>
 
-
 <style scoped>
-#main {
-  width: 100%;
-  height: 100%;
-  background-color: #f1f1f1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.desc {
-  padding-right: 20px;
-}
-
-#status {
-}
-
-.ctn {
-  display: flex;
-  justify-content: center;
-}
-
-.ctn_s {
-  display: flex;
-  flex-direction: column;
-
-}
-
-#next {
-}
 </style>
